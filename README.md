@@ -20,6 +20,10 @@ Set the following Docker environment variables
 
 `SECONDS_TO_WAIT` - How many seconds to wait before syncs
 
+`SPOTIPY_GET_ALL_USERS_PL` - default `false`. Setting this to true allows for syncing all followed playlists of the user that is logged in.
+
+`SPOTIFY_USER` - User identifier of the user logged in e.g. `spotify:user:username` with the `spotify:user:`
+
 The following URI's are supported:
 * A user's URI which will import all public playlists a user owns: `spotify:user:sonosplay`
 * A playlist URI which imports a specific playlist (must be public): `spotify:user:sonosplay:playlist:6nQjiSQhdf84s2AAxweRBv`

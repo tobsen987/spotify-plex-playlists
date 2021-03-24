@@ -5,6 +5,7 @@ from plexapi.server import PlexServer
 from plexapi.audio import Track
 import spotipy
 import os
+import spotipy.util as util
 from spotipy.oauth2 import SpotifyClientCredentials
 from typing import List
 
@@ -30,6 +31,21 @@ def getSpotifyPlaylist(sp: spotipy.client, userId: str, playlistId: str) -> []:
     return playlist
 
 
+# Returns a list of spotify playlist objects of the user logged in
+def getSpotifyLoggedUserPlaylists(sp: spotipy.client) -> []:
+    playlists = sp.current_user_playlists()
+    spotifyPlaylists = []
+    while playlists:
+        playlistItems = playlists['items']
+        # logging.info(playlists['items'])
+        for i, playlist in enumerate(playlistItems):
+            spotifyPlaylists.append(getSpotifyPlaylist(sp, playlist['owner']['id'], playlist['id']))
+        if playlists['next']:
+            playlists = sp.next(playlists)
+        else:
+            playlists = None
+    return spotifyPlaylists
+
 # Returns a list of spotify playlist objects
 def getSpotifyUserPlaylists(sp: spotipy.client, userId: str) -> []:
     playlists = sp.user_playlists(userId)
@@ -44,7 +60,6 @@ def getSpotifyUserPlaylists(sp: spotipy.client, userId: str) -> []:
         else:
             playlists = None
     return spotifyPlaylists
-
 
 def getSpotifyTracks(sp: spotipy.client, playlist: []) -> []:
     spotifyTracks = []
@@ -113,9 +128,15 @@ def runSync(plex : PlexServer, sp : spotipy.Spotify, spotifyURIs: []):
         elif 'user' in spotifyUriParts.keys() and 'playlist' in spotifyUriParts.keys():
             logging.info('Getting playlist %s from user %s' % (spotifyUriParts['user'], spotifyUriParts['playlist']))
             playlists.append(getSpotifyPlaylist(sp, spotifyUriParts['user'], spotifyUriParts['playlist']))
+        if os.environ.get('SPOTIPY_GET_ALL_USERS_PL') == "true":
+            logging.info('Getting playlists for User that is logged in')
+            playlists.extend(getSpotifyLoggedUserPlaylists(sp))
+            
 
     for playlist in playlists:
         createPlaylist(plex, sp, playlist)
+
+
     logging.info('Finished a Sync Operation')
 
 if __name__ == '__main__':
@@ -128,10 +149,15 @@ if __name__ == '__main__':
     secondsToWait = int(os.environ.get('SECONDS_TO_WAIT', 1800))
     baseurl = os.environ.get('PLEX_URL')
     token = os.environ.get('PLEX_TOKEN')
+    username = os.environ.get('SPOTIFY_USER')
     plex = PlexServer(baseurl, token)
 
-    client_credentials_manager = SpotifyClientCredentials()
-    sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+    token = util.prompt_for_user_token(username=username, scope='playlist-read-private', client_id=os.environ.get('SPOTIPY_CLIENT_ID'), client_secret=os.environ.get('SPOTIPY_CLIENT_SECRET'), redirect_uri='http://localhost/callback/', cache_path='/config/spotify-token')
+    if token:
+        sp = spotipy.Spotify(auth=token)
+
+    #client_credentials_manager = SpotifyClientCredentials()
+    #sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
     spotifyUris = spotifyUris.split(",")
 
